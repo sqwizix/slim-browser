@@ -29,11 +29,25 @@ runtime through Wry and Win32 APIs.
 | Passwords | Save credentials with Windows DPAPI and autofill one matching account on its exact HTTPS origin. |
 | Downloads | Pause, resume where supported, reveal files and choose byte or bit display units. |
 | Site controls | Manage per-origin permissions, cookies, history, cached files and cleanup on exit. |
-| Extensions | Install supported publisher packages through the built-in store after reviewing permissions. |
+| Extension store | A built-in catalog of supported publisher packages, with permission review before installation. The catalog will be expanded and refreshed over time. |
 | DNS and resources | Configure IPv4/IPv6 DNS and DoH for the browser; unload inactive tabs to free memory. |
 | Windows integration | Open external links, choose the default browser in Windows, share links and capture the visible page. |
 
 <table><tr><td><img src="docs/images/settings-en.png" alt="English settings"></td><td><img src="docs/images/privacy-en.png" alt="Privacy controls in English"></td></tr></table>
+
+## Memory management
+
+Keep background tabs from accumulating indefinitely: Slim Browser can unload inactive
+pages after 5, 15 or 30 minutes and recreate them when you return. Tabs with active
+downloads stay loaded. Actual memory use depends on the pages, extensions and WebView2
+processes; a fixed reduction versus other browsers is not guaranteed.
+
+## Built-in extension store
+
+Slim Browser has its own extension store for supported packages from their publishers.
+Review the requested permissions before installing. The catalog will gradually gain
+more extensions and be refreshed over time. Automatic updates of installed extensions
+are not available yet.
 
 ## Install
 
