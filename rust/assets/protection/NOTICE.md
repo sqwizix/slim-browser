@@ -1,0 +1,5 @@
+# Встроенная фильтрация Slim Browser
+
+Списки EasyList, EasyPrivacy и RU+EasyList взяты из официального Adblock Plus 4.50.0 (Chrome Web Store ID cfhdojbkjhnklbpkdaibdccddilifddb). Заголовки и авторство сохранены. EasyList и EasyPrivacy доступны по GPLv3; копия лицензии приложена. RU AdList внутри объединённого russian.txt содержит части по CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/); авторы и источники указаны в сохранённых заголовках. Условия каждой части сохраняются. Список NoCoin сохраняет собственную лицензию MIT. fingerprinting.txt — выборка правил EasyPrivacy по fingerprint/fpjs/fpcollect. Полные исходные списки находятся рядом и в filters.zip.
+
+Сопоставление правил выполняет adblock-rust 0.13.5 (Brave, MPL-2.0), https://github.com/brave/adblock-rust. Это встроенный модуль с поддержкой синтаксиса ABP, а не оригинальное расширение Adblock Plus. Бренд и платные функции eyeo не включены. Защита от предполагаемых отпечатков ограничивает Canvas/WebGL/Audio API в выбранном режиме; она не обещает анонимность.

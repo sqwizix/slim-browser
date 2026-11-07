@@ -1,0 +1,41 @@
+name: Windows build
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: JavaScript tests
+        shell: pwsh
+        run: node --test rust/ui/*.test.cjs rust/tests/*.test.cjs
+      - name: Formatting
+        working-directory: rust
+        run: cargo fmt --check
+      - name: Rust tests
+        working-directory: rust
+        run: cargo test --locked
+      - name: Clippy
+        working-directory: rust
+        run: cargo clippy --locked --all-targets -- -D warnings
+      - name: Build
+        run: ./build-rust.ps1 -OutputDirectory artifacts/SlimBrowser-0.5.0
+      - uses: actions/upload-artifact@v7
+        with:
+          name: SlimBrowser-Windows-x64
+          path: |
+            artifacts/SlimBrowser-0.5.0/SlimBrowser-Rust.exe
+            rust/assets/ThirdParty.zip
+            README.md
+            LICENSE
+            THIRD_PARTY_NOTICES.md
