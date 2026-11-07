@@ -7,7 +7,7 @@
   <p><strong>English</strong> · <a href="README.ru.md">Русский</a></p>
 </div>
 
-![Slim Browser — Russian interface](docs/images/browser-ru.png)
+![Slim Browser — English interface](docs/images/browser-en.png)
 
 Slim Browser is an independent open source browser for Windows 11 x64. It brings
 vertical tabs, translucent panels and built-in privacy controls into a restrained
@@ -33,7 +33,7 @@ runtime through Wry and Win32 APIs.
 | DNS and resources | Configure IPv4/IPv6 DNS and DoH for the browser; unload inactive tabs to free memory. |
 | Windows integration | Open external links, choose the default browser in Windows, share links and capture the visible page. |
 
-<table><tr><td><img src="docs/images/settings-en.png" alt="English settings"></td><td><img src="docs/images/privacy-ru.png" alt="Privacy controls in Russian"></td></tr></table>
+<table><tr><td><img src="docs/images/settings-en.png" alt="English settings"></td><td><img src="docs/images/privacy-en.png" alt="Privacy controls in English"></td></tr></table>
 
 ## Install
 
@@ -91,8 +91,12 @@ rust/assets/          Icon, filter sources and third-party notices
 packaging/            MSI and Windows registration tools
 .github/workflows/    Windows build and checks
 docs/images/          Screenshots from the running application
-*.cs                  Earlier C# / WinForms implementation, retained as legacy source
 ```
+
+## Questions and support
+
+Questions about Slim Browser? Contact **[@sqwizix on Telegram](https://t.me/sqwizix)**.
+For reproducible bugs and feature requests, use [GitHub Issues](https://github.com/sqwizix/slim-browser/issues).
 
 ## Contributing and license
 

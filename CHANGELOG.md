@@ -12,5 +12,4 @@
   contribution guidance, MIT license and third-party attribution.
 - Added a Windows build workflow and portable/MSI distribution.
 
-The Rust app and its earlier features are included in this first public source
-release. Root-level C# files preserve the previous WinForms implementation.
+The Rust app and its existing features are included in this first public source release.

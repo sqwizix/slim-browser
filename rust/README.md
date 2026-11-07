@@ -74,10 +74,9 @@ templates for dynamic labels. Preserve numbered placeholders in the English cata
 Page titles, folder names and user data are not translated. Native system button
 captions, websites and extension UIs are managed by their respective owners.
 
-## Local data and legacy code
+## Local data
 
 The app uses `%LOCALAPPDATA%/SlimBrowserRust`. First launch can migrate settings,
 bookmarks, history and DPAPI credentials from `%LOCALAPPDATA%/SlimBrowser`, the
-earlier C# profile. Cookies and extensions are not migrated; DPAPI requires the
-same Windows user. Root-level C# source is retained for reference and is not
-built into the current Rust app.
+previous profile location. Cookies and extensions are not migrated; DPAPI requires
+the same Windows user.

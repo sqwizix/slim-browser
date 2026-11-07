@@ -31,7 +31,7 @@
 | Сеть и память | IPv4/IPv6 DNS и DNS over HTTPS для браузера; выгрузка неактивных вкладок. |
 | Windows | Внешние ссылки, выбор браузера по умолчанию через параметры Windows, отправка ссылки и снимок видимой части страницы. |
 
-<table><tr><td><img src="docs/images/settings-en.png" alt="Настройки на английском"></td><td><img src="docs/images/privacy-ru.png" alt="Настройки защиты на русском"></td></tr></table>
+<table><tr><td><img src="docs/images/settings-ru.png" alt="Настройки на русском"></td><td><img src="docs/images/privacy-ru.png" alt="Настройки защиты на русском"></td></tr></table>
 
 ## Установка
 
@@ -90,7 +90,11 @@ WebView2 в изолированном профиле. Подробности �
 | `packaging/` | Сборка MSI и регистрация в Windows |
 | `.github/workflows/` | Проверки и сборка для Windows |
 | `docs/images/` | Скриншоты работающего приложения |
-| `*.cs` в корне | Сохранённая ранняя версия на C# / WinForms; в актуальный EXE не входит |
+
+## Вопросы и связь
+
+Вопросы о Slim Browser можно задать в Telegram: **[@sqwizix](https://t.me/sqwizix)**.
+Сообщения об ошибках и предложения по функциям — в [GitHub Issues](https://github.com/sqwizix/slim-browser/issues).
 
 ## Участие и лицензия
 
