@@ -15,7 +15,7 @@ impl Spring {
     }
     pub fn step(&mut self, dt: f64) -> bool {
         let dt = dt.clamp(0., 0.05);
-        let omega = 30.;
+        let omega = 36.;
         let decay = (-omega * dt).exp();
         for i in 0..4 {
             let distance = self.value[i] - self.target[i];

@@ -68,6 +68,7 @@ enum Event {
     SiteDataCleared(WindowId, std::result::Result<(), String>),
     Notice(WindowId, String),
     PopupLostFocus(WindowId),
+    WarmPopup(WindowId),
     Download(WindowId, u64, bool, String),
     DownloadStarted(WindowId, u64, u64),
     CleanupDone(WindowId, CleanupPurpose, std::result::Result<(), String>),
@@ -112,6 +113,9 @@ struct BrowserWindow {
     // WebViews must drop before the native parent HWND.
     shell: WebView,
     popup: Option<WebView>,
+    popup_cache: Option<WebView>,
+    popup_loaded: bool,
+    popup_session: u64,
     service: Option<WebView>,
     tabs: Vec<Tab>,
     window: Window,
@@ -342,6 +346,9 @@ impl App {
         self.windows.push(BrowserWindow {
             shell,
             popup: None,
+            popup_cache: None,
+            popup_loaded: false,
+            popup_session: 0,
             service: None,
             tabs: vec![],
             window,
@@ -490,7 +497,7 @@ impl App {
                     .step(now.duration_since(motion.previous).as_secs_f64());
                 motion.previous = now;
                 platform::place_window(&w.window, motion.spring.value)?;
-                settled || now.duration_since(motion.started) > Duration::from_millis(450)
+                settled || now.duration_since(motion.started) > Duration::from_millis(350)
             } else {
                 false
             };
@@ -633,7 +640,7 @@ impl App {
         } else {
             store.settings.privacy.permissions.clone()
         };
-        let state = json!({"blockedRequests":self.protection.blocked.get(),"storageBytes":w.storage_bytes,"permissions":permissions,"permissionCategories":privacy::CATEGORIES,"siteData":w.site_data,"settings":store.settings,"catalog":self.catalog,"catalogLoading":self.catalog_loading,"pendingInstall":w.pending_install,"storeBusy":w.store_busy,"dnsRestartRequired":store.settings.dns!=self.active_dns,"tabs":tabs,"active":w.active,"private":w.private,"view":w.view,"status":w.status,"busy":w.busy,"menuOpen":w.popup.is_some(),"popupMode":w.popup_kind,"wideMenu":wide_menu,"folders":folders,"folderEdit":w.folder_edit,"folderRename":w.folder_rename,"menuTab":w.menu_tab,"transfers":transfers,"edgeToEdge":platform::edge_to_edge(&w.window),"translationLanguages":model::TRANSLATION_LANGUAGES,"searchEngines":model::SEARCH_ENGINES,"pageLeft":page_left,"pageTop":page_top,"bookmarks":bookmarks,"history":history,"credentials":credentials,"extensions":w.extensions,"canBack":can_back,"canForward":can_forward});
+        let state = json!({"blockedRequests":self.protection.blocked.get(),"storageBytes":w.storage_bytes,"permissions":permissions,"permissionCategories":privacy::CATEGORIES,"siteData":w.site_data,"settings":store.settings,"catalog":self.catalog,"catalogLoading":self.catalog_loading,"pendingInstall":w.pending_install,"storeBusy":w.store_busy,"dnsRestartRequired":store.settings.dns!=self.active_dns,"tabs":tabs,"active":w.active,"private":w.private,"view":w.view,"status":w.status,"busy":w.busy,"menuOpen":w.popup.is_some(),"popupMode":w.popup_kind,"popupSession":w.popup_session,"wideMenu":wide_menu,"folders":folders,"folderEdit":w.folder_edit,"folderRename":w.folder_rename,"menuTab":w.menu_tab,"transfers":transfers,"edgeToEdge":platform::edge_to_edge(&w.window),"translationLanguages":model::TRANSLATION_LANGUAGES,"searchEngines":model::SEARCH_ENGINES,"pageLeft":page_left,"pageTop":page_top,"bookmarks":bookmarks,"history":history,"credentials":credentials,"extensions":w.extensions,"canBack":can_back,"canForward":can_forward});
         let script = format!("window.renderState?.({state})");
         w.shell.evaluate_script(&script)?;
         if let Some(p) = &w.popup {
@@ -1037,36 +1044,81 @@ impl App {
     fn toggle_menu(&mut self, wi: usize) -> Result<()> {
         self.toggle_popup(wi, "menu")
     }
+    fn close_popup(&mut self, wi: usize) -> Result<bool> {
+        let Some(popup) = self.windows[wi].popup.take() else {
+            return Ok(false);
+        };
+        popup.set_visible(false)?;
+        if self.windows[wi].popup_kind != "extension" {
+            popup.set_memory_usage_level(MemoryUsageLevel::Low)?;
+            self.windows[wi].popup_cache = Some(popup);
+        }
+        Ok(true)
+    }
+    fn warm_popup(&mut self, wi: usize) -> Result<()> {
+        if self.windows[wi].popup_cache.is_some() || self.windows[wi].popup.is_some() {
+            return Ok(());
+        }
+        let id = self.windows[wi].window.id();
+        let popup = self
+            .ui_builder(id, true)
+            .with_visible(false)
+            .with_focused(false)
+            .with_bounds(self.popup_bounds(wi, 350., 480.))
+            .build_as_child(&self.windows[wi].window)?;
+        engine::configure(&popup, &self.store.borrow().settings, true)?;
+        engine::shortcuts(&popup, id, self.proxy.clone(), true)?;
+        popup.set_memory_usage_level(MemoryUsageLevel::Low)?;
+        self.windows[wi].popup_cache = Some(popup);
+        Ok(())
+    }
     fn toggle_popup(&mut self, wi: usize, kind: &str) -> Result<()> {
         let same = self.windows[wi].popup_kind == kind;
-        if self.windows[wi].popup.take().is_some() && same {
+        if self.close_popup(wi)? && same {
             return self.sync(wi);
         }
         self.windows[wi].popup_kind = kind.to_owned();
+        self.windows[wi].popup_session += 1;
         let id = self.windows[wi].window.id();
-        // A separate child view lets the menu sit above live pages without hiding them.
+        // Keep one trusted panel per window; extension views never enter this cache.
+        self.warm_popup(wi)?;
         let (width, height) = self.popup_dimensions(wi, kind);
-        let builder = self
-            .ui_builder(id, true)
-            .with_focused(false)
-            .with_bounds(self.popup_bounds(wi, width, height));
-        let popup = builder.build_as_child(&self.windows[wi].window)?;
-        engine::configure(&popup, &self.store.borrow().settings, true)?;
-        engine::shortcuts(&popup, id, self.proxy.clone(), true)?;
+        let popup = self.windows[wi]
+            .popup_cache
+            .take()
+            .context("Popup cache unavailable")?;
+        popup.set_memory_usage_level(MemoryUsageLevel::Normal)?;
+        popup.set_bounds(self.popup_bounds(wi, width, height))?;
         self.windows[wi].popup = Some(popup);
         self.sync(wi)?;
+        if self.windows[wi].popup_loaded {
+            let proxy = self.proxy.clone();
+            self.windows[wi]
+                .popup
+                .as_ref()
+                .unwrap()
+                .evaluate_script_with_callback("true", move |_| {
+                    let _ = proxy.send_event(Event::Ipc(id, true, r#"{"cmd":"ready"}"#.into()));
+                })?;
+        }
         if kind == "page" && !self.windows[wi].private {
             self.load_extensions(wi)?;
         }
         Ok(())
     }
-    fn popup_ready(&self, wi: usize) -> Result<()> {
+    fn popup_ready(&mut self, wi: usize) -> Result<()> {
+        if self.windows[wi].popup_kind == "extension" {
+            return Ok(());
+        }
+        self.windows[wi].popup_loaded = true;
         let Some(popup) = &self.windows[wi].popup else {
             return Ok(());
         };
         // Wait for the packaged document to load before taking focus. The
         // originating button can still own focus while its click is completing.
+        popup.set_visible(true)?;
         popup.focus()?;
+        popup.evaluate_script("window.revealPopup?.();window.focusPopup?.()")?;
         Ok(())
     }
     fn popup_bounds(&self, wi: usize, width: f64, height: f64) -> Rect {
@@ -1357,7 +1409,7 @@ impl App {
         self.sync_all()
     }
     fn set_view(&mut self, wi: usize, view: Option<String>) -> Result<()> {
-        self.windows[wi].popup.take();
+        self.close_popup(wi)?;
         self.windows[wi].view = view;
         if self.windows[wi].view.as_deref() == Some("privacy") {
             self.measure_storage(wi);
@@ -1706,6 +1758,9 @@ impl App {
                 if let Some(p) = &w.popup {
                     engine::configure(p, &settings, true)?;
                 }
+                if let Some(p) = &w.popup_cache {
+                    engine::configure(p, &settings, true)?;
+                }
                 if let Some(service) = &w.service {
                     engine::configure(service, &settings, false)?;
                 }
@@ -1922,7 +1977,7 @@ impl App {
                 }
             }
             "close_menu" => {
-                self.windows[wi].popup.take();
+                self.close_popup(wi)?;
                 self.sync(wi)?;
             }
             "new_window" => self.open_window(target, false, false)?,
@@ -2013,7 +2068,7 @@ impl App {
                 }
             }
             "escape" => {
-                let had_popup = self.windows[wi].popup.take().is_some();
+                let had_popup = self.close_popup(wi)?;
                 if had_popup {
                     self.sync(wi)?;
                 } else if self.windows[wi].view.is_some() {
@@ -2174,7 +2229,7 @@ impl App {
                     .context("Включите расширение перед открытием")?;
                 let url = extension_store::popup_url(&self.store.borrow().directory, extension_id)?;
                 let source_tab = self.windows[wi].active.unwrap_or(0);
-                self.windows[wi].popup.take();
+                self.close_popup(wi)?;
                 self.windows[wi].extension_size = extension_store::popup_dimensions(extension_id);
                 self.windows[wi].popup_kind = "extension".into();
                 self.windows[wi].popup_anchor = None;
@@ -2473,25 +2528,35 @@ impl App {
             Event::Ipc(id, popup, text) => {
                 if let Some(wi) = self.index(id) {
                     let message: Value = serde_json::from_str(&text)?;
-                    if popup && message["cmd"] != "ready" && message["cmd"] != "download_action" {
-                        self.windows[wi].popup.take();
+                    if popup
+                        && !matches!(message["cmd"].as_str(), Some("ready" | "download_action"))
+                    {
+                        self.close_popup(wi)?;
                     }
                     let ready = message["cmd"] == "ready" && !popup;
                     let popup_ready = message["cmd"] == "ready" && popup;
                     self.command(wi, message, target)?;
                     if popup_ready {
                         self.popup_ready(wi)?;
-                        if self.smoke.as_ref().is_some_and(|s| s.phase == 50) {
+                        if self.windows[wi].popup.is_some()
+                            && self.smoke.as_ref().is_some_and(|s| s.phase == 50)
+                        {
                             self.smoke_menu_ready(wi)?;
-                        } else if self.smoke.as_ref().is_some_and(|s| s.phase == 51) {
+                        } else if self.windows[wi].popup.is_some()
+                            && self.smoke.as_ref().is_some_and(|s| s.phase == 51)
+                        {
                             self.smoke_wide_menu_ready(wi)?;
-                        } else if self
-                            .smoke
-                            .as_ref()
-                            .is_some_and(|s| matches!(s.phase, 80..=82))
+                        } else if self.windows[wi].popup.is_some()
+                            && self
+                                .smoke
+                                .as_ref()
+                                .is_some_and(|s| matches!(s.phase, 80..=82))
                         {
                             self.smoke_refinement_menu_ready(wi)?;
                         }
+                    }
+                    if ready && self.smoke.is_none() {
+                        let _ = self.proxy.send_event(Event::WarmPopup(id));
                     }
                     if ready && self.smoke.as_ref().is_some_and(|s| s.phase == 0) {
                         self.begin_smoke()?;
@@ -2505,7 +2570,7 @@ impl App {
                         .iter()
                         .find(|t| t.id == opener)
                         .and_then(|t| t.folder_id);
-                    self.windows[wi].popup.take();
+                    self.close_popup(wi)?;
                     self.add_tab(wi, url)?;
                     if let Some(ti) = self.active_index(wi) {
                         self.windows[wi].tabs[ti].folder_id = folder;
@@ -2825,10 +2890,16 @@ impl App {
                     self.sync(wi)?;
                 }
             }
+            Event::WarmPopup(id) => {
+                if let Some(wi) = self.index(id) {
+                    self.warm_popup(wi)?;
+                }
+            }
             Event::PopupLostFocus(id) => {
                 if let Some(wi) = self.index(id) {
-                    self.windows[wi].popup.take();
-                    self.sync(wi)?;
+                    if self.close_popup(wi)? {
+                        self.sync(wi)?;
+                    }
                 }
             }
             Event::Download(id, tab, started, message) => {

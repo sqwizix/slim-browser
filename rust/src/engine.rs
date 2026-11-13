@@ -32,7 +32,12 @@ pub fn environment(
             ),
             None => ARGS.to_owned(),
         };
-        options.set_additional_browser_arguments(args);
+        let scrolling = if crate::platform::motion_enabled() {
+            "--enable-smooth-scrolling"
+        } else {
+            "--disable-smooth-scrolling"
+        };
+        options.set_additional_browser_arguments(format!("{args} {scrolling}"));
         options.set_language(language.into());
         options.set_are_browser_extensions_enabled(true);
         options.set_enable_tracking_prevention(true);
